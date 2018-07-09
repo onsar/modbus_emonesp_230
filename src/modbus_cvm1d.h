@@ -1,3 +1,18 @@
+
+#ifndef MODBUS_CVM1D_H
+#define MODBUS_CVM1D_H
+
+
+/*
+Necesario para comunicar con CVM-1D
+Serial.begin(19200);
+#ifdef DEBUG_SERIAL1
+Serial1.begin(19200);
+#endif
+
+*/
+
+#include <Arduino.h>
 #include <ModbusMaster.h>
 
 #define MAX485_DE      D1
@@ -18,6 +33,32 @@ void postTransmission()
   digitalWrite(MAX485_RE_NEG, 0);
   digitalWrite(MAX485_DE, 0);
 }
+
+
+void modbus_setup()
+{
+
+  pinMode(MAX485_RE_NEG, OUTPUT);
+  pinMode(MAX485_DE, OUTPUT);
+  // Init in receive mode
+  digitalWrite(MAX485_RE_NEG, 0);
+  digitalWrite(MAX485_DE, 0);
+
+  // Modbus communication runs at 115200 baud
+
+  // Modbus slave ID 1
+
+
+  node.begin(1, Serial);
+  // Callbacks allow us to configure the RS485 transceiver correctly
+
+  DEBUG.println("preTransmission");
+  node.preTransmission(preTransmission);
+  node.postTransmission(postTransmission);
+
+
+}
+
 
 void modbus_loop()
 {
@@ -74,8 +115,6 @@ void modbus_loop()
     Serial.println("Conexion no establecida");
   }
 
-
-
-
-
 }
+
+#endif // MODBUS_CVM1D_H

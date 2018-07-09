@@ -31,12 +31,8 @@
 #include "input.h"
 #include "emoncms.h"
 #include "mqtt.h"
-// 485-------------------------------------------------------------------
 #include "modbus_cvm1d.h"
 
-
-
-// 485-------------------------------------------------------------------
 
 
 // -------------------------------------------------------------------
@@ -72,39 +68,13 @@ void setup() {
 
   DEBUG.println("Server started");
 
+  DEBUG.println("modbus_setup");
+  modbus_setup();
+
   delay(100);
-
-
-// 485------
-  pinMode(MAX485_RE_NEG, OUTPUT);
-  pinMode(MAX485_DE, OUTPUT);
-  // Init in receive mode
-  digitalWrite(MAX485_RE_NEG, 0);
-  digitalWrite(MAX485_DE, 0);
-
-  // Modbus communication runs at 115200 baud
-
-  // Modbus slave ID 1
-
-  DEBUG.println("node.begin");
-  node.begin(1, Serial);
-  // Callbacks allow us to configure the RS485 transceiver correctly
-
-  DEBUG.println("preTransmission");
-  node.preTransmission(preTransmission);
-  node.postTransmission(postTransmission);
-
-// 485------
 
 } // end setup
 
-// 485------
-// bool state = true;
-// 485------
-
-// -------------------------------------------------------------------
-// LOOP
-// -------------------------------------------------------------------
 
 void loop()
 {
@@ -114,7 +84,7 @@ void loop()
   wifi_loop();
   modbus_loop();
 
-  /*
+
   String input = "";
   boolean gotInput = input_get(input);
 
@@ -131,8 +101,7 @@ void loop()
       }
     }
   }
-*/
-// 485------
+
 
 
   delay(2000);
