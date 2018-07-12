@@ -49,10 +49,10 @@ void modbus_setup()
   // Modbus slave ID 1
 
 
-  node.begin(1, Serial);
+  node.begin(3, Serial);
+  // node.begin(3, Serial2);
   // Callbacks allow us to configure the RS485 transceiver correctly
 
-  DEBUG.println("preTransmission");
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 
@@ -62,9 +62,53 @@ void modbus_setup()
 
 void modbus_loop()
 {
+  // escritura de los registros e configuración desde 044C
 
+  // Primario Tensión          1(Dec)          00000001 (Hex)
+  node.setTransmitBuffer(0x00, 0x0000);
+  node.setTransmitBuffer(0x01, 0x0001);
+
+  // Secundario Tensión       1(Dec)          0001 (Hex)
+  node.setTransmitBuffer(0x02, 0x0001);
+
+  // Primario de Corriente    50 (Dec)     32 (Hex)
+  node.setTransmitBuffer(0x03, 0x0032);
+
+  // Sin uso
+  node.setTransmitBuffer(0x04, 0x0000);
+
+  // Cálculo de armónicos      00 Respecto el Valor Eficaz
+  node.setTransmitBuffer(0x05, 0x0000);
+
+  node.writeMultipleRegisters(0x044C, 6);
+
+  // lectura de los registros e configuración desde 044C
   uint8_t result;
-  result = node.readInputRegisters(0x0000, 8);
+  result = node.readInputRegisters(0x044C, 6);
+  Serial.println("");
+  Serial.println("lectura de los registros e configuración desde 044C");
+
+  Serial.println(result);
+  if (result == node.ku8MBSuccess)
+  {
+    Serial.println("lectura de los registros ES VALIDA");
+    Serial.print("0x00: ");
+    Serial.println(node.getResponseBuffer(0x00));
+    Serial.print("0x01: ");
+    Serial.println(node.getResponseBuffer(0x01));
+    Serial.print("0x02: ");
+    Serial.println(node.getResponseBuffer(0x02));
+    Serial.print("0x03: ");
+    Serial.println(node.getResponseBuffer(0x03));
+    Serial.print("0x04: ");
+    Serial.println(node.getResponseBuffer(0x04));
+    Serial.print("0x05: ");
+    Serial.println(node.getResponseBuffer(0x05));
+  }
+  else {Serial.println("la lectura de registros NO es CORRECTA");}
+
+/*
+  result = node.readInputRegisters(0x044C, 6);
   Serial.println("");
 
   Serial.println(result);
@@ -80,8 +124,8 @@ void modbus_loop()
     Serial.print("0x03: ");
     Serial.println(node.getResponseBuffer(0x03));
 
-    String name_value;
-    name_value += "intensidad:";
+    // String name_value;
+    // name_value += "intensidad:";
     name_value += String(node.getResponseBuffer(0x03));
     Serial.println(name_value);
 
@@ -114,7 +158,7 @@ void modbus_loop()
   {
     Serial.println("Conexion no establecida");
   }
-
+*/
 }
 
 #endif // MODBUS_CVM1D_H

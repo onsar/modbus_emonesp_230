@@ -1,5 +1,10 @@
 # EmonESP
 
+Esta software esta en pruebas
+El objetivo es leer y configurar los disposivos de circutor
+* CVM-NET
+* CVM-1D
+
 [![Build Status](https://travis-ci.org/openenergymonitor/EmonESP.svg?branch=master)](https://travis-ci.org/openenergymonitor/EmonESP)
 
 ESP8266 WIFI serial to emoncms link
