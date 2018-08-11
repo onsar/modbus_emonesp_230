@@ -56,28 +56,95 @@ void modbus_setup()
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 
+}
+
+uint32_t compemento_a_dos(uint16_t high_16, uint16_t low_16){
+
+  uint32_t both_32 = 0x00000000;
+  uint32_t sign_32 = 0x00000000;
+  both_32 = ((uint32_t)high_16) << 16;
+  both_32 = both_32 | (uint32_t)low_16;
+  sign_32 = both_32 & 0x80000000;
+  if (sign_32) {
+    Serial.println("El signo es negativo");
+  }
+  Serial.print("unidos los dos registros de uint16_t: ");
+  Serial.println((unsigned long)both_32,HEX);
+  Serial.print("elsigno de de registro_32: ");
+  Serial.println((unsigned long)sign_32,HEX); // 0 o 80000000
+  return both_32;
 
 }
 
 
 void modbus_loop()
 {
+  Serial.println(" ----------------------------- ");
   Serial.println("prueba con variables de 32 bits");
-  uint32_t registro_32 = 0xCCCCCCCC;
-  int espacio = sizeof(uint32_t);
-  Serial.println((unsigned long)registro_32);
-  Serial.print("bits de uint32_t: ");
+  Serial.println(" ----------------------------- ");
+
+  int espacio = sizeof(uint16_t);
+  Serial.print("bits de un uint16_t: ");
   Serial.println(espacio);
 
+  espacio = sizeof(uint32_t);
+  Serial.print("bits de un uint32_t: ");
+  Serial.println(espacio);
 
+  espacio = sizeof(unsigned long);
+  Serial.print("bits de un unsigned long: ");
+  Serial.println(espacio);
+
+  espacio = sizeof(long);
+  Serial.print("bits de un long: ");
+  Serial.println(espacio);
+
+  uint32_t registro_32 = 0x0;
+  uint32_t signo_32 = 0x80000000;
   uint16_t registro_16h = 0xAAAA;
   uint16_t registro_16l = 0xBBBB;
 
-  registro_32 = 0x0;
+  Serial.println("_32 mayor numero con signo en complenento a 2: ");
+  Serial.println(signo_32); //2147483648
+  Serial.println(signo_32,HEX);
+
+
+  Serial.println("_32 mayor numero: ");
+  uint32_t mayor_32 = 0xFFFFFFFF;
+  Serial.println(mayor_32); //2147483648
+  Serial.println(mayor_32,HEX);
+
+  Serial.println((unsigned long)registro_32);
   registro_32 = ((uint32_t)registro_16h) << 16;
   registro_32 = registro_32 | (uint32_t)registro_16l;
-  Serial.println("unidos los dos registros de uint16_t:");
-  Serial.println((long)registro_32,HEX);
+  signo_32 = registro_32 & 0x80000000;
+
+  Serial.print("unidos los dos registros de uint16_t: ");
+  Serial.println((unsigned long)registro_32,HEX);
+  Serial.print("elsigno de de registro_32: ");
+  Serial.println((unsigned long)signo_32,HEX);
+
+  Serial.println(" ----------------------------- ");
+  Serial.println("OTRA varible de 32 bits");
+  Serial.println(" ----------------------------- ");
+
+  registro_16h = 0x8AAA;
+  registro_16l = 0xBB0B;
+  registro_32 = ((uint32_t)registro_16h) << 16;
+  registro_32 = registro_32 | (uint32_t)registro_16l;
+  signo_32 = registro_32 & 0x80000000;
+  Serial.print("unidos los dos registros de uint16_t: ");
+  Serial.println((unsigned long)registro_32,HEX);
+  Serial.print("elsigno de de registro_32: ");
+  Serial.println((unsigned long)signo_32,HEX); // 0 o 80000000
+
+  Serial.println(" ----------------------------- ");
+  Serial.println("OTRA varible POR FUNCION");
+  Serial.println(" ----------------------------- ");
+
+  registro_16h = 0x7AAA;
+  registro_16l = 0xBB0B;
+  uint32_t test = compemento_a_dos(registro_16h, registro_16l);
 
 
   // escritura de los registros e configuración desde 044C
