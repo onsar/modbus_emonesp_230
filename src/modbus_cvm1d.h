@@ -2,16 +2,6 @@
 #ifndef MODBUS_CVM1D_H
 #define MODBUS_CVM1D_H
 
-
-/*
-Necesario para comunicar con CVM-1D
-Serial.begin(19200);
-#ifdef DEBUG_SERIAL1
-Serial1.begin(19200);
-#endif
-
-*/
-
 #include <Arduino.h>
 #include <ModbusMaster.h>
 
@@ -25,7 +15,35 @@ uint16_t registro_16h = 0x0000;
 uint16_t registro_16l = 0x0000;
 uint32_t both_32 = 0x00000000;
 uint32_t sign_32 = 0x00000000;
-long both_long = 0;
+
+
+#define PARAMETROS_LIST "V_1","A_1","Kw_1","Kvar_1","PF_1",\
+                        "V_2","A_2","Kw_2","Kvar_2","PF_2",\
+                        "V_3","A_3","Kw_3","Kvar_3","PF_3",\
+                        "Kw_III","KvarL_III","KvarC_III","Cos_III","PFIII",\
+                        "Hz","V12","V23","V31"
+
+#define FACTOR_LIST 10,1000,1,1,100,\
+                    10,1000,1,1,100,\
+                    10,1000,1,1,100,\
+                    1,1,1,100,100,\
+                    10,10,10,10
+
+// ************************************
+// **  MATRIZ DE CONFIGURACION ********
+// ************************************
+
+/*
+DATA:    [=====     ]  52.4% (used 42916 bytes from 81920 bytes)
+PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
+*/
+
+String registro_parametros[] = {PARAMETROS_LIST};
+int registro_factor[] = {FACTOR_LIST};
+uint16_t registro_recibidos[48];
+long registro_long[24];
+int registro_tx[24];
+
 
 // instantiate ModbusMaster object
 ModbusMaster node;
@@ -44,7 +62,6 @@ void postTransmission()
 
 void modbus_setup()
 {
-
   pinMode(MAX485_RE_NEG, OUTPUT);
   pinMode(MAX485_DE, OUTPUT);
   // Init in receive mode
@@ -52,7 +69,6 @@ void modbus_setup()
   digitalWrite(MAX485_DE, 0);
 
   // Modbus communication runs at 115200 baud
-
   // Modbus slave ID 3
   node.begin(3, Serial);
 
@@ -61,13 +77,14 @@ void modbus_setup()
 
 }
 
-long compemento_a_dos(uint16_t high_16, uint16_t low_16){
+long two_register_to_long(uint16_t high_16, uint16_t low_16){
 
   both_32 = 0x00000000;
   sign_32 = 0x00000000;
   both_32 = ((uint32_t)high_16) << 16;
   both_32 = both_32 | (uint32_t)low_16;
   sign_32 = both_32 & 0x80000000;
+  long both_long = 0;
 
   if (sign_32) {
     Serial.println("El signo es negativo");
@@ -83,16 +100,18 @@ long compemento_a_dos(uint16_t high_16, uint16_t low_16){
   Serial.print("el signo de de registro_32: ");
   Serial.println((unsigned long)sign_32,HEX); // 0 o 80000000
   return both_long;
-
 }
 
+void result_to_register(int n){
+  long both_long = 0;
+  both_long= two_register_to_long(registro_recibidos[(n*2)],registro_recibidos[(n*2)+1]);
+  registro_tx[n] = (float)both_long/(float)registro_factor[n];
+  Serial.print("media que se almacena para tx: ");
+  Serial.println(registro_tx[n]);
+}
 
 void modbus_loop()
 {
-  Serial.println(" ----------------------------- ");
-  Serial.println("prueba con variables de 32 bits");
-  Serial.println(" ----------------------------- ");
-
   // sizeof(uint16_t) --> 2
   // sizeof(uint32_t) --> 4
   // sizeof(unsigned long) --> 4
@@ -101,26 +120,36 @@ void modbus_loop()
 
 
   Serial.println(" ----------------------------- ");
-  Serial.println("varible_1 POR FUNCION + ");
+  Serial.println("varible_1 POR FUNCION +        ");
   Serial.println(" ----------------------------- ");
 
-  registro_16h = 0x7AAA;
+  registro_16h = 0x7AAA; // 2058009355
   registro_16l = 0xBB0B;
-  long test = compemento_a_dos(registro_16h, registro_16l);
-  Serial.println(test,HEX);
-  Serial.println(test);
+  registro_recibidos[0]=0x0000;
+  registro_recibidos[1]=0x0898; // 220.0 V
+  result_to_register(0);
+
+  // long test = two_register_to_long(registro_16h, registro_16l);
+  // Serial.println(test,HEX);
+  // Serial.println(test);
 
   Serial.println(" ----------------------------- ");
-  Serial.println("varible_2 POR FUNCION - ");
+  Serial.println("varible_2 POR FUNCION -        ");
   Serial.println(" ----------------------------- ");
 
-  registro_16h = 0x8AAA;
-  registro_16l = 0xBB0B;
-  test = compemento_a_dos(registro_16h, registro_16l);
-  Serial.println(test,HEX);
-  Serial.println(test);
+
+  registro_recibidos[4] = 0x8AAA; //-1968522485 1968522496
+  registro_recibidos[5] = 0xBB0B;
+  result_to_register(2);
+
+  Serial.println(" ---------------------------- ");
+  Serial.println("varible_2 POR FUNCION ++  HEX ");
+  Serial.println(" ----------------------------- ");
 
 
+for (uint8_t i =0x00; i < 0xFD; i++) {
+  Serial.println(i,HEX);
+}
   // escritura de los registros e configuración desde 044C
 
   // Primario Tensión          1(Dec)          00000001 (Hex)
@@ -268,59 +297,6 @@ void modbus_loop()
   }
   else {Serial.println("la lectura de registros NO es CORRECTA");}
 
-
-/*
-  result = node.readInputRegisters(0x044C, 6);
-  Serial.println("");
-
-  Serial.println(result);
-  if (result == node.ku8MBSuccess)
-  {
-    Serial.print("0x00: ");
-    Serial.println(node.getResponseBuffer(0x00));
-    Serial.print("0x01: ");
-    Serial.println(node.getResponseBuffer(0x01));
-
-    Serial.print("0x02: ");
-    Serial.println(node.getResponseBuffer(0x02));
-    Serial.print("0x03: ");
-    Serial.println(node.getResponseBuffer(0x03));
-
-    // String name_value;
-    // name_value += "intensidad:";
-    name_value += String(node.getResponseBuffer(0x03));
-    Serial.println(name_value);
-
-
-    uint32_t current_time= millis();
-    if (wifi_mode == WIFI_MODE_STA || wifi_mode == WIFI_MODE_AP_AND_STA)
-      {
-        if(emoncms_apikey != 0 && ((current_time - t_last_tx) > 40000))
-          {
-            t_last_tx = current_time;
-            emoncms_publish(name_value);
-
-          }
-      }
-
-
-    Serial.print("0x04: ");
-    Serial.println(node.getResponseBuffer(0x04));
-    Serial.print("0x05: ");
-    Serial.println(node.getResponseBuffer(0x05));
-
-    // Serial.println(node.getResponseBuffer(0x04)/100.0f);
-    // Serial.print("Vload: ");
-    // Serial.println(node.getResponseBuffer(0xC0)/100.0f);
-    //Serial.print("Pload: ");
-    //Serial.println((node.getResponseBuffer(0x0D) +
-    //                 node.getResponseBuffer(0x0E) << 16)/100.0f);
-  }
-  else
-  {
-    Serial.println("Conexion no establecida");
-  }
-*/
 }
 
 #endif // MODBUS_CVM1D_H
