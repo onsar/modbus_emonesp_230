@@ -229,18 +229,18 @@ void modbus_loop()
   delay(10000);
 
 
-  result = node.readInputRegisters(0x0000, 30);
+  result = node.readInputRegisters(0x0000, (30));
   Serial.println("");
   Serial.println("lectura de los registros de energía desde 0x0000");
   Serial.println(result);
   if (result == node.ku8MBSuccess)
   {
 
-    for (int i =0; i < (NUMBER_OF_REGISTERS-1); i++) {
+    for (int i =0; i < (15-1); i++) {
       result_to_register(i);
     }
 
-    for (int i = 0; i < (NUMBER_OF_REGISTERS-1); i++) {
+    for (int i = 0; i < (15-1); i++) {
       Serial.print(registro_parametros[i]);
       Serial.print(" ---> ");
       // Serial.println(node.getResponseBuffer((2*i)+1));
