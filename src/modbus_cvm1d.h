@@ -16,6 +16,8 @@ uint16_t registro_16l = 0x0000;
 uint32_t both_32 = 0x00000000;
 uint32_t sign_32 = 0x00000000;
 
+#define NUMBER_OF_REGISTERS 24
+
 
 #define PARAMETROS_LIST "V_1","A_1","Kw_1","Kvar_1","PF_1",\
                         "V_2","A_2","Kw_2","Kvar_2","PF_2",\
@@ -40,9 +42,8 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
 
 String registro_parametros[] = {PARAMETROS_LIST};
 int registro_factor[] = {FACTOR_LIST};
-uint16_t registro_recibidos[48];
-long registro_long[24];
-int registro_tx[24];
+// long registro_long[24];
+float registro_tx[24];
 
 
 // instantiate ModbusMaster object
@@ -103,8 +104,14 @@ long two_register_to_long(uint16_t high_16, uint16_t low_16){
 }
 
 void result_to_register(int n){
+  Serial.print("result_to_tx_register --> ");
+  Serial.println(n);
   long both_long = 0;
-  both_long= two_register_to_long(registro_recibidos[(n*2)],registro_recibidos[(n*2)+1]);
+  // registro_recibidos[(n*2)] = node.getResponseBuffer(n*2);
+  // registro_recibidos[(n*2)+1] = node.getResponseBuffer((n*2)+1);
+  both_long = two_register_to_long(node.getResponseBuffer(n*2),node.getResponseBuffer((n*2)+1));
+  Serial.print("both_long --> ");
+  Serial.println(both_long);
   registro_tx[n] = (float)both_long/(float)registro_factor[n];
   Serial.print("media que se almacena para tx: ");
   Serial.println(registro_tx[n]);
@@ -119,37 +126,36 @@ void modbus_loop()
   // Serial.println(mayor_32) --> 2147483648
 
 
-  Serial.println(" ----------------------------- ");
-  Serial.println("varible_1 POR FUNCION +        ");
-  Serial.println(" ----------------------------- ");
+  // Serial.println(" ----------------------------- ");
+  // Serial.println("varible_1 POR FUNCION +        ");
+  // Serial.println(" ----------------------------- ");
 
-  registro_16h = 0x7AAA; // 2058009355
-  registro_16l = 0xBB0B;
-  registro_recibidos[0]=0x0000;
-  registro_recibidos[1]=0x0898; // 220.0 V
-  result_to_register(0);
+  // registro_16h = 0x7AAA; // 2058009355
+  // registro_16l = 0xBB0B;
+  // registro_recibidos[0]=0x0000;
+//   registro_recibidos[1]=0x0898; // 220.0 V
+  // result_to_register(0);
 
   // long test = two_register_to_long(registro_16h, registro_16l);
   // Serial.println(test,HEX);
   // Serial.println(test);
 
-  Serial.println(" ----------------------------- ");
-  Serial.println("varible_2 POR FUNCION -        ");
-  Serial.println(" ----------------------------- ");
+  // Serial.println(" ----------------------------- ");
+  // Serial.println("varible_2 POR FUNCION -        ");
+  // Serial.println(" ----------------------------- ");
 
 
-  registro_recibidos[4] = 0x8AAA; //-1968522485 1968522496
-  registro_recibidos[5] = 0xBB0B;
-  result_to_register(2);
+  // registro_recibidos[4] = 0x8AAA; //-1968522485 1968522496
+  // registro_recibidos[5] = 0xBB0B;
+  // result_to_register(2);
 
-  Serial.println(" ---------------------------- ");
-  Serial.println("varible_2 POR FUNCION ++  HEX ");
-  Serial.println(" ----------------------------- ");
+  // Serial.println(" ---------------------------- ");
+  // Serial.println("varible_2 POR FUNCION ++  HEX ");
+  // Serial.println(" ----------------------------- ");
 
 
-for (uint8_t i =0x00; i < 0xFD; i++) {
-  Serial.println(i,HEX);
-}
+
+
   // escritura de los registros e configuración desde 044C
 
   // Primario Tensión          1(Dec)          00000001 (Hex)
@@ -229,10 +235,23 @@ for (uint8_t i =0x00; i < 0xFD; i++) {
   Serial.println(result);
   if (result == node.ku8MBSuccess)
   {
+
+    for (int i =0; i < (NUMBER_OF_REGISTERS-1); i++) {
+      result_to_register(i);
+    }
+
+    for (int i = 0; i < (NUMBER_OF_REGISTERS-1); i++) {
+      Serial.print(registro_parametros[i]);
+      Serial.print(" ---> ");
+      // Serial.println(node.getResponseBuffer((2*i)+1));
+      Serial.println(registro_tx[i]);
+    }
+
     Serial.print("0x00:Vr: ");
     Serial.println(node.getResponseBuffer(0x00),HEX);
     Serial.print("0x01:Vr: ");
     Serial.println(node.getResponseBuffer(0x01),HEX);
+
     Serial.print("0x02:Irms: ");
     Serial.println(node.getResponseBuffer(0x02));
     Serial.print("0x03:Irms: ");
@@ -254,6 +273,7 @@ for (uint8_t i =0x00; i < 0xFD; i++) {
     Serial.println(node.getResponseBuffer(0x0A));
     Serial.print("0x0B:Vs: ");
     Serial.println(node.getResponseBuffer(0x0B));
+
     Serial.print("0x0C: ");
     Serial.println(node.getResponseBuffer(0x0C));
     Serial.print("0x0D: ");
@@ -270,10 +290,12 @@ for (uint8_t i =0x00; i < 0xFD; i++) {
     Serial.println(node.getResponseBuffer(0x12));
     Serial.print("0x13: ");
     Serial.println(node.getResponseBuffer(0x13));
-    Serial.print("0x14: ");
+
+    Serial.print("0x14:Vt ");
     Serial.println(node.getResponseBuffer(0x14));
     Serial.print("0x15:Vt: ");
     Serial.println(node.getResponseBuffer(0x15));
+
     Serial.print("0x16: ");
     Serial.println(node.getResponseBuffer(0x16));
     Serial.print("0x17: ");
@@ -290,8 +312,6 @@ for (uint8_t i =0x00; i < 0xFD; i++) {
     Serial.println(node.getResponseBuffer(0x1C));
     Serial.print("0x1D: ");
     Serial.println(node.getResponseBuffer(0x1D));
-    Serial.print("0x1F: ");
-    Serial.println(node.getResponseBuffer(0x1F));
 
 
   }
