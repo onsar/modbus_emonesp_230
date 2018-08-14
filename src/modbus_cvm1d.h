@@ -41,9 +41,13 @@ PROGRAM: [=         ]  10.3% (used 431335 bytes from 4194304 bytes)
                     10,10,10,10
 
 
+
+
 String registro_parametros[] = {PARAMETROS_LIST};
 String transmission_list[] = {TRANSMISSION_LIST};
+int tx_mark[NUMBER_OF_REGISTERS];
 int registro_factor[] = {FACTOR_LIST};
+int numero_strings = 0;
 int number_of_tx_list = 0;
 // registro de resultadoS para transmitir al servidor
 float registro_tx[24];
@@ -186,11 +190,13 @@ void modbus_loop()
   // sizeof(long) --> 4
   // Serial.println(mayor_32) --> 2147483648
 
-
+  // ***********************************************************
+  // prueba para guardar los parametros que deben ser trasmitidos
+  // ***********************************************************
 
   Serial.println("_sizeof_"); //tamaño de todos los punteros / Tamaño de un puntero
 
-  int numero_strings = sizeof(registro_parametros)/sizeof(registro_parametros[0]);
+  numero_strings = sizeof(registro_parametros)/sizeof(registro_parametros[0]);
   number_of_tx_list = sizeof(transmission_list)/sizeof(transmission_list[0]);
   Serial.print("_numero_strings_   :");
   Serial.println(numero_strings);
@@ -202,6 +208,22 @@ void modbus_loop()
   Serial.println(registro_parametros[0]);
   Serial.println(registro_parametros[0].length());
 
+  for (int i = 0; i < numero_strings-1; i++) {
+
+    int r = transmission_list[0].equalsIgnoreCase(registro_parametros[i]);
+    Serial.print("_compare_   :");
+    Serial.println(r);
+    Serial.print("_numero_strings_   :");
+    Serial.println(i);
+    if (r) {
+      tx_mark[i] =1;
+    }
+    else tx_mark[i] =0;
+  }
+
+  // ***********************************************************
+  // prueba para guardar los parametros que deben ser trasmitidos
+  // ***********************************************************
 
 
   Serial.println("_modbus_loop_");
