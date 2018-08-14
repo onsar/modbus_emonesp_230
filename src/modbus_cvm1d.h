@@ -15,6 +15,10 @@
 /*
 DATA:    [=====     ]  52.4% (used 42916 bytes from 81920 bytes)
 PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
+
+
+DATA:    [=====     ]  54.4% (used 44524 bytes from 81920 bytes)
+PROGRAM: [=         ]  10.3% (used 431335 bytes from 4194304 bytes)
 */
 
 #define NUMBER_OF_REGISTERS 24
@@ -26,6 +30,10 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
                         "Kw_III","KvarL_III","KvarC_III","Cos_III","PFIII",\
                         "Hz","V12","V23","V31"
 
+#define TRANSMISSION_LIST "Kw_1","Kvar_1",\
+                          "Kw_2","Kvar_2",\
+                          "Kw_3","Kvar_3"
+
 #define FACTOR_LIST 10,1000,1,1,100,\
                     10,1000,1,1,100,\
                     10,1000,1,1,100,\
@@ -34,8 +42,10 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
 
 
 String registro_parametros[] = {PARAMETROS_LIST};
+String transmission_list[] = {TRANSMISSION_LIST};
 int registro_factor[] = {FACTOR_LIST};
-// registro de resultado para transmitir al servidor
+int number_of_tx_list = 0;
+// registro de resultadoS para transmitir al servidor
 float registro_tx[24];
 // instantiate ModbusMaster object
 ModbusMaster node;
@@ -175,6 +185,24 @@ void modbus_loop()
   // sizeof(unsigned long) --> 4
   // sizeof(long) --> 4
   // Serial.println(mayor_32) --> 2147483648
+
+
+
+  Serial.println("_sizeof_"); //tamaño de todos los punteros / Tamaño de un puntero
+
+  int numero_strings = sizeof(registro_parametros)/sizeof(registro_parametros[0]);
+  number_of_tx_list = sizeof(transmission_list)/sizeof(transmission_list[0]);
+  Serial.print("_numero_strings_   :");
+  Serial.println(numero_strings);
+  Serial.print("_number_of_tx_list_   :");
+  Serial.println(number_of_tx_list);
+
+  Serial.println(sizeof(registro_parametros));
+  Serial.println(sizeof(registro_parametros[0]));
+  Serial.println(registro_parametros[0]);
+  Serial.println(registro_parametros[0].length());
+
+
 
   Serial.println("_modbus_loop_");
   Serial.println("_readInputRegisters_");
