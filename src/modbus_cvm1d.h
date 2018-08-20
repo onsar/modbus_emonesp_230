@@ -15,16 +15,12 @@
 /*
 DATA:    [=====     ]  52.4% (used 42916 bytes from 81920 bytes)
 PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
-
-
-DATA:    [=====     ]  54.4% (used 44524 bytes from 81920 bytes)
-PROGRAM: [=         ]  10.3% (used 431335 bytes from 4194304 bytes)
 */
 
 #define NUMBER_OF_REGISTERS 24
 
 
-#define PARAMETROS_LIST "V_1","A_1","Kw_1","Kvar_1","PF_1",\
+#define PARAMETER_LIST "V_1","A_1","Kw_1","Kvar_1","PF_1",\
                         "V_2","A_2","Kw_2","Kvar_2","PF_2",\
                         "V_3","A_3","Kw_3","Kvar_3","PF_3",\
                         "Kw_III","KvarL_III","KvarC_III","Cos_III","PFIII",\
@@ -43,14 +39,15 @@ PROGRAM: [=         ]  10.3% (used 431335 bytes from 4194304 bytes)
 
 
 
-String registro_parametros[] = {PARAMETROS_LIST};
+String array_parameters[] = {PARAMETER_LIST};
 String transmission_list[] = {TRANSMISSION_LIST};
+int factor_list[] = {FACTOR_LIST};
 int tx_mark[NUMBER_OF_REGISTERS];
-int registro_factor[] = {FACTOR_LIST};
-int numero_strings = 0;
+
+int number_of_parameters = 0;
 int number_of_tx_list = 0;
 // registro de resultadoS para transmitir al servidor
-float registro_tx[24];
+float tx_values[24];
 // instantiate ModbusMaster object
 ModbusMaster node;
 
@@ -64,9 +61,112 @@ void postTransmission()
   digitalWrite(MAX485_RE_NEG, 0);
   digitalWrite(MAX485_DE, 0);
 }
+
+
+// ************************************
+// *******    _FUNCIONES_      ********
+// ************************************
+
+
+long two_register_to_long(uint16_t high_16, uint16_t low_16){
+
+  Serial.println("_two_register_to_long_");
+  uint32_t both_32 = 0x00000000;
+  uint32_t sign_32 = 0x00000000;
+  long both_long = 0;
+
+  both_32 = ((uint32_t)high_16) << 16;
+  both_32 = both_32 | (uint32_t)low_16;
+  sign_32 = both_32 & 0x80000000;
+  both_long = (long)both_32;
+
+  Serial.print("HEX: ");
+  Serial.print((unsigned long)both_32,HEX);
+  Serial.print(" - sign: ");
+  Serial.print((unsigned long)sign_32,HEX); // 0 o 80000000
+  Serial.print(" - long: ");
+  Serial.println(both_long);
+  return both_long;
+}
+
+void result_to_register(int n){
+  Serial.println("_result_to_tx_register_");
+
+  long both_long = 0;
+  both_long = two_register_to_long(node.getResponseBuffer(n*2),node.getResponseBuffer((n*2)+1));
+  tx_values[n] = (float)both_long/(float)factor_list[n];
+  Serial.println(n);
+
+  Serial.print("both_long --> ");
+  Serial.println(both_long);
+  Serial.print("media que se almacena para tx: ");
+  Serial.println(tx_values[n]);
+}
+
+
+void default_value_to_register(){
+  Serial.println("_default_value_to_register_");
+  for (int i =0; i < (number_of_parameters); i++) {
+    tx_values[i] = 1.12;
+    Serial.print("tx_values[] ");
+    Serial.print(i);
+    Serial.print(" -> ");
+    Serial.println(tx_values[i]);
+  }
+}
+
+void parameter_list_mark_to_tx(){
+  //tamaño de todos los punteros / Tamaño de un puntero
+  Serial.println("_parameter_list_mark_to_tx_");
+
+  number_of_parameters = sizeof(array_parameters)/sizeof(array_parameters[0]);
+  number_of_tx_list = sizeof(transmission_list)/sizeof(transmission_list[0]);
+  Serial.print("number_of_parameters   :");
+  Serial.println(number_of_parameters);
+  Serial.print("number_of_tx_list   :");
+  Serial.println(number_of_tx_list);
+
+  for (int pl = 0; pl < number_of_parameters; pl++) {         //parameter_list
+    tx_mark[pl] = 0;
+    for (int tl = 0; tl < number_of_tx_list; tl++) {    //transmission_list
+      int r = array_parameters[pl].equalsIgnoreCase(transmission_list[tl]);
+      if (r) {
+        tx_mark[pl] = 1;
+        Serial.print("realtion_pl_tl   :");
+        Serial.print(pl);
+        Serial.print(" = ");
+        Serial.println(tl);
+        break;
+      }
+    }
+  }
+}
+
+String compose_msj_to_tx() {
+  Serial.println("_compose_msj_to_tx_");
+  Serial.print("number_of_parameters : ");
+  Serial.println(number_of_parameters);
+  String message_to_tx_ = "";
+  for (int i = 0; i < number_of_parameters; i++) {
+    if (tx_mark[i]) {
+      message_to_tx_ += array_parameters[i];
+      message_to_tx_ += ":";
+      message_to_tx_ += tx_values[i];
+      message_to_tx_ += ",";
+      // Serial.println(message_to_tx_);
+      // Serial.println(message_to_tx_.length());
+    }
+  }
+  if (message_to_tx_.endsWith(",")) {
+    message_to_tx_.remove((message_to_tx_.length()-1));
+  }
+  return message_to_tx_;
+}
+
 // ************************************
 // *******    MODBUS_SETUP      *******
 // ************************************
+
 
 void modbus_setup()
 {
@@ -141,45 +241,10 @@ void modbus_setup()
   }
   else {Serial.println("la lectura NO es CORRECTA");}
 
-}
-// ************************************
-// *******    _FUNCIONES_      ********
-// ************************************
+
+  parameter_list_mark_to_tx();
 
 
-long two_register_to_long(uint16_t high_16, uint16_t low_16){
-
-  Serial.println("_two_register_to_long_");
-  uint32_t both_32 = 0x00000000;
-  uint32_t sign_32 = 0x00000000;
-  long both_long = 0;
-
-  both_32 = ((uint32_t)high_16) << 16;
-  both_32 = both_32 | (uint32_t)low_16;
-  sign_32 = both_32 & 0x80000000;
-  both_long = (long)both_32;
-
-  Serial.print("HEX: ");
-  Serial.print((unsigned long)both_32,HEX);
-  Serial.print(" - sign: ");
-  Serial.print((unsigned long)sign_32,HEX); // 0 o 80000000
-  Serial.print(" - long: ");
-  Serial.println(both_long);
-  return both_long;
-}
-
-void result_to_register(int n){
-  Serial.println("_result_to_tx_register_");
-
-  long both_long = 0;
-  both_long = two_register_to_long(node.getResponseBuffer(n*2),node.getResponseBuffer((n*2)+1));
-  registro_tx[n] = (float)both_long/(float)registro_factor[n];
-  Serial.println(n);
-
-  Serial.print("both_long --> ");
-  Serial.println(both_long);
-  Serial.print("media que se almacena para tx: ");
-  Serial.println(registro_tx[n]);
 }
 
 void modbus_loop()
@@ -190,43 +255,15 @@ void modbus_loop()
   // sizeof(long) --> 4
   // Serial.println(mayor_32) --> 2147483648
 
-  // ***********************************************************
-  // prueba para guardar los parametros que deben ser trasmitidos
-  // ***********************************************************
-
-  Serial.println("_sizeof_"); //tamaño de todos los punteros / Tamaño de un puntero
-
-  numero_strings = sizeof(registro_parametros)/sizeof(registro_parametros[0]);
-  number_of_tx_list = sizeof(transmission_list)/sizeof(transmission_list[0]);
-  Serial.print("_numero_strings_   :");
-  Serial.println(numero_strings);
-  Serial.print("_number_of_tx_list_   :");
-  Serial.println(number_of_tx_list);
-
-  Serial.println(sizeof(registro_parametros));
-  Serial.println(sizeof(registro_parametros[0]));
-  Serial.println(registro_parametros[0]);
-  Serial.println(registro_parametros[0].length());
-
-  for (int i = 0; i < numero_strings-1; i++) {
-
-    int r = transmission_list[0].equalsIgnoreCase(registro_parametros[i]);
-    Serial.print("_compare_   :");
-    Serial.println(r);
-    Serial.print("_numero_strings_   :");
-    Serial.println(i);
-    if (r) {
-      tx_mark[i] =1;
-    }
-    else tx_mark[i] =0;
-  }
-
-  // ***********************************************************
-  // prueba para guardar los parametros que deben ser trasmitidos
-  // ***********************************************************
-
-
   Serial.println("_modbus_loop_");
+
+
+  // ***********************************************************
+  // prueba para guardar los parametros que deben ser trasmitidos
+  // ***********************************************************
+
+
+
   Serial.println("_readInputRegisters_");
   delay(10000);  //Necesario para darle tiempo al equipo de CIRCUTOR
   uint8_t result;
@@ -241,9 +278,9 @@ void modbus_loop()
     }
 
     for (int i = 0; i < (15-1); i++) {
-      Serial.print(registro_parametros[i]);
+      Serial.print(array_parameters[i]);
       Serial.print(" ---> ");
-      Serial.println(registro_tx[i]);
+      Serial.println(tx_values[i]);
     }
 
     Serial.print("0x00:Vr: ");
@@ -313,7 +350,13 @@ void modbus_loop()
     Serial.println(node.getResponseBuffer(0x1D));
 
   }
-  else {Serial.println("la lectura de registros NO es CORRECTA");}
+  else {
+    Serial.println("la lectura de registros NO es CORRECTA");
+    default_value_to_register();
+  }
+
+  String msj_to_tx = compose_msj_to_tx();
+  Serial.println(msj_to_tx);
 
 }
 
