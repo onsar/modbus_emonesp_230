@@ -5,21 +5,25 @@
 #include <Arduino.h>
 #include <ModbusMaster.h>
 
+
 #define MAX485_DE      D5
 #define MAX485_RE_NEG  D6
 
-// ************************************
-// **  MATRIZ DE CONFIGURACION ********
-// ************************************
-
 /*
+Information before Modbus software implementation:
 DATA:    [=====     ]  52.4% (used 42916 bytes from 81920 bytes)
 PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
 */
 
+// Definitios of the MODBUS query
+// To read all data it is necessary two different queries
 #define NUMBER_OF_REGISTERS 24
+#define DIRECCION_TO_READ_1 0x0000
+#define REGISTERS_TO_READ_1 15
+#define DIRECCION_TO_READ_2 0x001E
+#define REGISTERS_TO_READ_2 9
 
-#define REGISTERS_TO_READ 15
+
 
 #define PARAMETER_LIST "V_1","A_1","Kw_1","Kvar_1","PF_1",\
                        "V_2","A_2","Kw_2","Kvar_2","PF_2",\
@@ -31,13 +35,12 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
                           "Kw_2","Kvar_2",\
                           "Kw_3","Kvar_3"
 
+// Divider factor to move to correct units
 #define FACTOR_LIST 10,1000,1,1,100,\
                     10,1000,1,1,100,\
                     10,1000,1,1,100,\
                     1,1,1,100,100,\
                     10,10,10,10
-
-
 
 
 String array_parameters[] = {PARAMETER_LIST};
@@ -47,6 +50,7 @@ int tx_mark[NUMBER_OF_REGISTERS];
 
 int number_of_parameters = 0;
 int number_of_tx_list = 0;
+uint32_t t_last_tx =0;
 // registro de resultadoS para transmitir al servidor
 float tx_values[24];
 // instantiate ModbusMaster object
@@ -81,15 +85,16 @@ long two_register_to_long(uint16_t high_16, uint16_t low_16){
   sign_32 = both_32 & 0x80000000;
   both_long = (long)both_32;
 
-  Serial.print("HEX: ");
-  Serial.print((unsigned long)both_32,HEX);
-  Serial.print(" - sign: ");
-  Serial.print((unsigned long)sign_32,HEX); // 0 o 80000000
-  Serial.print(" - long: ");
-  Serial.println(both_long);
+  // Serial.print("HEX: ");
+  // Serial.print((unsigned long)both_32,HEX);
+  // Serial.print(" - sign: ");
+  // Serial.print((unsigned long)sign_32,HEX); // 0 o 80000000
+  // Serial.print(" - long: ");
+  // Serial.println(both_long);
+
   return both_long;
 }
-
+// consecutive number from 0 to REGISTERS TO READ
 void result_to_register(int n, int first){
   Serial.println("_result_to_tx_register_");
 
@@ -117,9 +122,8 @@ void default_value_to_register(){
 }
 
 void parameter_list_mark_to_tx(){
-  //tamaño de todos los punteros / Tamaño de un puntero
   Serial.println("_parameter_list_mark_to_tx_");
-
+  //Size of all pointers / Size of a pointer
   number_of_parameters = sizeof(array_parameters)/sizeof(array_parameters[0]);
   number_of_tx_list = sizeof(transmission_list)/sizeof(transmission_list[0]);
   Serial.print("number_of_parameters   :");
@@ -225,7 +229,7 @@ void modbus_setup()
     Serial.print("0x05: ");
     Serial.println(node.getResponseBuffer(0x05));
   }
-  else {Serial.println("la lectura NO es CORRECTA");}
+  else {Serial.println("the reading is NOT CORRECT");}
 
   Serial.println("_readInputRegisters_03E8_");
   delay(10000);
@@ -243,7 +247,7 @@ void modbus_setup()
     Serial.println(node.getResponseBuffer(0x02),HEX);
 
   }
-  else {Serial.println("la lectura NO es CORRECTA");}
+  else {Serial.println("the reading is NOT CORRECT");}
 
 
   parameter_list_mark_to_tx();
@@ -262,63 +266,64 @@ void modbus_loop()
   Serial.println("_modbus_loop_");
 
 
-  // ***********************************************************
-  // prueba para guardar los parametros que deben ser trasmitidos
-  // ***********************************************************
-
-
-
   Serial.println("_readInputRegisters_1_");
   delay(10000);  //Necesario para darle tiempo al equipo de CIRCUTOR
   uint8_t result;
 
-  result = node.readInputRegisters(0x0000, (REGISTERS_TO_READ*2));
-  // result = node.readInputRegisters(0x001E, (18));
+  result = node.readInputRegisters(DIRECCION_TO_READ_1, (REGISTERS_TO_READ_1*2));
   Serial.println(result);
 
   if (result == node.ku8MBSuccess)
   {
-
-    for (int i =0; i < (REGISTERS_TO_READ); i++) {
+    for (int i =0; i < (REGISTERS_TO_READ_1); i++) {
+    // The first result go to the first position asigned in tx_values
       result_to_register(i,0);
     }
 
-    for (int i = 0; i < (REGISTERS_TO_READ); i++) {
+    for (int i = 0; i < (REGISTERS_TO_READ_1); i++) {
       Serial.print(array_parameters[i]);
       Serial.print(" ---> ");
       Serial.println(tx_values[i]);
     }
   }
   else {
-    Serial.println("la lectura NO es CORRECTA");
+    Serial.println("the reading is NOT CORRECT");
     default_value_to_register();
   }
 
   Serial.println("_readInputRegisters_2_");
-  delay(10000);  //Necesario para darle tiempo al equipo de CIRCUTOR
+  delay(10000);  //Needed to read from Circutor
 
-  result = node.readInputRegisters(0x001E, (18));
-    // result = node.readInputRegisters(0x001E, (18));
+  result = node.readInputRegisters(DIRECCION_TO_READ_2, (REGISTERS_TO_READ_2*2));
   Serial.println(result);
 
   if (result == node.ku8MBSuccess)
   {
-    for (int i =0; i < (9); i++) {
-    result_to_register(i,15);
+    for (int i =0; i < (REGISTERS_TO_READ_2); i++) {
+      // The first result go to the first position asigned in tx_values
+      result_to_register(i,REGISTERS_TO_READ_1);
     }
-    for (int i = 15; i < (24); i++) {
+    for (int i = REGISTERS_TO_READ_1; i < (NUMBER_OF_REGISTERS); i++) {
       Serial.print(array_parameters[i]);
       Serial.print(" ---> ");
       Serial.println(tx_values[i]);
     }
   }
   else {
-    Serial.println("la lectura NO es CORRECTA");
+    Serial.println("the reading is NOT CORRECT");
     default_value_to_register();
   }
 
   String msj_to_tx = compose_msj_to_tx();
   Serial.println(msj_to_tx);
+
+  Serial.print("_millis()_");
+  Serial.println(millis()/1000);
+  if(( millis() - t_last_tx) > 60000) {
+    Serial.print("_emoncms_publish_");
+    t_last_tx = millis();
+    emoncms_publish(msj_to_tx);
+  }
 
 }
 
