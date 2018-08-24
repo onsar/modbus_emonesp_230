@@ -33,7 +33,7 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
 
 #define TRANSMISSION_LIST "Kw_1","Kvar_1",\
                           "Kw_2","Kvar_2",\
-                          "Kw_3","Kvar_3"
+                          "Kw_3","Kvar_3","V23"
 
 // Divider factor to move to correct units
 #define FACTOR_LIST 10,1000,1,1,100,\
@@ -50,9 +50,13 @@ int tx_mark[NUMBER_OF_REGISTERS];
 
 int number_of_parameters = 0;
 int number_of_tx_list = 0;
-uint32_t t_last_tx =0;
 // registro de resultadoS para transmitir al servidor
 float tx_values[24];
+
+// For secuencial execution of functions (temporal thread)
+uint32_t t_last_tx =0;
+int modbus_state = 1;
+
 // instantiate ModbusMaster object
 ModbusMaster node;
 
@@ -69,13 +73,11 @@ void postTransmission()
 
 
 // ************************************
-// *******    _FUNCIONES_      ********
+// *******    _FUNCTIONS      ********
 // ************************************
 
 
 long two_register_to_long(uint16_t high_16, uint16_t low_16){
-
-  Serial.println("_two_register_to_long_");
   uint32_t both_32 = 0x00000000;
   uint32_t sign_32 = 0x00000000;
   long both_long = 0;
@@ -85,6 +87,7 @@ long two_register_to_long(uint16_t high_16, uint16_t low_16){
   sign_32 = both_32 & 0x80000000;
   both_long = (long)both_32;
 
+  // Serial.println("_two_register_to_long_");
   // Serial.print("HEX: ");
   // Serial.print((unsigned long)both_32,HEX);
   // Serial.print(" - sign: ");
@@ -94,25 +97,26 @@ long two_register_to_long(uint16_t high_16, uint16_t low_16){
 
   return both_long;
 }
-// consecutive number from 0 to REGISTERS TO READ
-void result_to_register(int n, int first){
-  Serial.println("_result_to_tx_register_");
 
+// consecutive number from 0 to number of tx_value to calculate
+// it depends on the registers received with reasImputRegisters
+// first: first position in the results array: tx_values[]
+void result_to_register(int n, int first){
   long both_long = 0;
   both_long = two_register_to_long(node.getResponseBuffer(n*2),node.getResponseBuffer((n*2)+1));
   tx_values[n+first] = (float)both_long/(float)factor_list[n+first];
-
-  Serial.print(n+first);
-  Serial.print("  both_long: ");
-  Serial.print(both_long);
-  Serial.print(" - float: ");
-  Serial.println(tx_values[n+first]);
+  // Serial.println("_result_to_tx_register_");
+  // Serial.print(n+first);
+  // Serial.print("  both_long: ");
+  // Serial.print(both_long);
+  // Serial.print(" - float: ");
+  // Serial.println(tx_values[n+first]);
 }
 
 
-void default_value_to_register(){
+void default_value_to_register(int first, int last){
   Serial.println("_default_value_to_register_");
-  for (int i =0; i < (number_of_parameters); i++) {
+  for (int i =first; i < (last); i++) {
     tx_values[i] = 1.12;
     Serial.print("tx_values[] ");
     Serial.print(i);
@@ -148,9 +152,6 @@ void parameter_list_mark_to_tx(){
 }
 
 String compose_msj_to_tx() {
-  Serial.println("_compose_msj_to_tx_");
-  Serial.print("number_of_parameters : ");
-  Serial.println(number_of_parameters);
   String message_to_tx_ = "";
   for (int i = 0; i < number_of_parameters; i++) {
     if (tx_mark[i]) {
@@ -158,8 +159,6 @@ String compose_msj_to_tx() {
       message_to_tx_ += ":";
       message_to_tx_ += tx_values[i];
       message_to_tx_ += ",";
-      // Serial.println(message_to_tx_);
-      // Serial.println(message_to_tx_.length());
     }
   }
   if (message_to_tx_.endsWith(",")) {
@@ -188,74 +187,14 @@ void modbus_setup()
   node.preTransmission(preTransmission);
   node.postTransmission(postTransmission);
 
-
-  Serial.println("_setTransmitBuffer_044C_");
-  // Primario Tensión          1(Dec)          00000001 (Hex)
-  node.setTransmitBuffer(0x00, 0x0000);
-  node.setTransmitBuffer(0x01, 0x0001);
-  // Secundario Tensión       1(Dec)          0001 (Hex)
-  node.setTransmitBuffer(0x02, 0x0001);
-  // Primario de Corriente    50(Dec) 32 Hex) 5000(Dec) 1388(Hex)
-  node.setTransmitBuffer(0x03, 0x0032);
-  // Sin uso
-  node.setTransmitBuffer(0x04, 0x0000);
-  // Cálculo de armónicos      00 Respecto el Valor Eficaz
-  node.setTransmitBuffer(0x05, 0x0000);
-
-  Serial.println("_writeMultipleRegisters_044C_");
-  node.writeMultipleRegisters(0x044C, 6);
-
-  Serial.println("");
-  Serial.println("_readInputRegisters_044C_");
-  delay(10000);
-  uint8_t result;
-  result = node.readInputRegisters(0x044C, 6);
-  Serial.print("result = ");
-  Serial.println(result);
-
-  if (result == node.ku8MBSuccess)
-  {
-    Serial.println("lectura de los registros ES VALIDA");
-    Serial.print("0x00: ");
-    Serial.println(node.getResponseBuffer(0x00));
-    Serial.print("0x01: ");
-    Serial.println(node.getResponseBuffer(0x01));
-    Serial.print("0x02: ");
-    Serial.println(node.getResponseBuffer(0x02));
-    Serial.print("0x03: ");
-    Serial.println(node.getResponseBuffer(0x03));
-    Serial.print("0x04: ");
-    Serial.println(node.getResponseBuffer(0x04));
-    Serial.print("0x05: ");
-    Serial.println(node.getResponseBuffer(0x05));
-  }
-  else {Serial.println("the reading is NOT CORRECT");}
-
-  Serial.println("_readInputRegisters_03E8_");
-  delay(10000);
-  result = node.readInputRegisters(0x03E8, 3);
-  Serial.println(result);
-
-  if (result == node.ku8MBSuccess)
-  {
-    Serial.println("lectura de los registros ES VALIDA");
-    Serial.print("0x00: ");
-    Serial.println(node.getResponseBuffer(0x00),HEX);
-    Serial.print("0x01: ");
-    Serial.println(node.getResponseBuffer(0x01),HEX);
-    Serial.print("0x02: ");
-    Serial.println(node.getResponseBuffer(0x02),HEX);
-
-  }
-  else {Serial.println("the reading is NOT CORRECT");}
-
-
   parameter_list_mark_to_tx();
-
-
 }
 
-void modbus_loop()
+// ************************************
+// *******    MODBUS_THREAD    ********
+// ************************************
+
+String modbus_loop()
 {
   // sizeof(uint16_t) --> 2
   // sizeof(uint32_t) --> 4
@@ -263,67 +202,141 @@ void modbus_loop()
   // sizeof(long) --> 4
   // Serial.println(mayor_32) --> 2147483648
 
-  Serial.println("_modbus_loop_");
 
-
-  Serial.println("_readInputRegisters_1_");
-  delay(10000);  //Necesario para darle tiempo al equipo de CIRCUTOR
+  String msj_to_tx = "nook";
   uint8_t result;
 
-  result = node.readInputRegisters(DIRECCION_TO_READ_1, (REGISTERS_TO_READ_1*2));
-  Serial.println(result);
+// ***************** modbus setup *************************
 
-  if (result == node.ku8MBSuccess)
-  {
-    for (int i =0; i < (REGISTERS_TO_READ_1); i++) {
-    // The first result go to the first position asigned in tx_values
-      result_to_register(i,0);
-    }
-
-    for (int i = 0; i < (REGISTERS_TO_READ_1); i++) {
-      Serial.print(array_parameters[i]);
-      Serial.print(" ---> ");
-      Serial.println(tx_values[i]);
-    }
+  if (modbus_state == 1) {
+    modbus_state = 2;
+    // Primario Tensión          1(Dec)          00000001 (Hex)
+    node.setTransmitBuffer(0x00, 0x0000);
+    node.setTransmitBuffer(0x01, 0x0001);
+    // Secundario Tensión       1(Dec)          0001 (Hex)
+    node.setTransmitBuffer(0x02, 0x0001);
+    // Primario de Corriente    50(Dec) 32 Hex) 5000(Dec) 1388(Hex)
+    node.setTransmitBuffer(0x03, 0x0032);
+    // Sin uso
+    node.setTransmitBuffer(0x04, 0x0000);
+    // Cálculo de armónicos      00 Respecto el Valor Eficaz
+    node.setTransmitBuffer(0x05, 0x0000);
+    node.writeMultipleRegisters(0x044C, 6);
+    Serial.print("");
+    Serial.print("_setTransmitBuffer_044C_energy_configuration_");
+    Serial.print("    modbus_state -->  ");
+    Serial.println(modbus_state);
+    Serial.println("_writeMultipleRegisters_044C_");
   }
-  else {
-    Serial.println("the reading is NOT CORRECT");
-    default_value_to_register();
+
+  else if (modbus_state == 2) {
+    modbus_state = 3;
+    result = node.readInputRegisters(0x044C, 6);
+    Serial.println("");
+    Serial.print("_readInputRegisters_044C_energy_configuration_");
+    Serial.print("    modbus_state -->  ");
+    Serial.println(modbus_state);
+    if (result == node.ku8MBSuccess)
+    {
+      Serial.println("lectura de los registros ES VALIDA");
+      Serial.print("0x00: ");
+      Serial.println(node.getResponseBuffer(0x00));
+      Serial.print("0x01: ");
+      Serial.println(node.getResponseBuffer(0x01));
+      Serial.print("0x02: ");
+      Serial.println(node.getResponseBuffer(0x02));
+      Serial.print("0x03-primario corriente: ");
+      Serial.println(node.getResponseBuffer(0x03));
+      Serial.print("0x04: ");
+      Serial.println(node.getResponseBuffer(0x04));
+      Serial.print("0x05: ");
+      Serial.println(node.getResponseBuffer(0x05));
+    }
+    else {Serial.println("the reading is NOT CORRECT");}
   }
 
-  Serial.println("_readInputRegisters_2_");
-  delay(10000);  //Needed to read from Circutor
+  else if (modbus_state == 3) {
+    modbus_state = 4;
+    result = node.readInputRegisters(0x03E8, 3);
+    Serial.print("_readInputRegisters_03E8_");
+    Serial.print("    modbus_state -->  ");
+    Serial.println(modbus_state);
+    if (result == node.ku8MBSuccess){
+      Serial.println("lectura de los registros ES VALIDA");
+      Serial.print("0x00: ");
+      Serial.println(node.getResponseBuffer(0x00),HEX);
+      Serial.print("0x01: ");
+      Serial.println(node.getResponseBuffer(0x01),HEX);
+      Serial.print("0x02: ");
+      Serial.println(node.getResponseBuffer(0x02),HEX);
+    }
+    else {Serial.println("the reading is NOT CORRECT");}
+  }
 
-  result = node.readInputRegisters(DIRECCION_TO_READ_2, (REGISTERS_TO_READ_2*2));
-  Serial.println(result);
 
-  if (result == node.ku8MBSuccess)
-  {
-    for (int i =0; i < (REGISTERS_TO_READ_2); i++) {
+// ***********************************************************
+
+
+  else if (modbus_state == 4) {
+    modbus_state = 5;
+    result = node.readInputRegisters(DIRECCION_TO_READ_1, (REGISTERS_TO_READ_1*2));
+    Serial.println("");
+    Serial.print("_readInputRegisters_1_: ");
+    Serial.print(result);
+    Serial.print("    modbus_state --> ");
+    Serial.println(modbus_state);
+    if (result == node.ku8MBSuccess)
+    {
+      for (int i =0; i < (REGISTERS_TO_READ_1); i++) {
       // The first result go to the first position asigned in tx_values
-      result_to_register(i,REGISTERS_TO_READ_1);
+        result_to_register(i,0);
+      }
+      for (int i = 0; i < (REGISTERS_TO_READ_1); i++) {
+        Serial.print(array_parameters[i]);
+        Serial.print(" ---> ");
+        Serial.println(tx_values[i]);
+      }
     }
-    for (int i = REGISTERS_TO_READ_1; i < (NUMBER_OF_REGISTERS); i++) {
-      Serial.print(array_parameters[i]);
-      Serial.print(" ---> ");
-      Serial.println(tx_values[i]);
+    else {
+      Serial.println("the reading is NOT CORRECT");
+      default_value_to_register(0,REGISTERS_TO_READ_1);
+    }
+  }
+
+  // Serial.println("_readInputRegisters_2_");
+  // delay(10000);  //Needed to read from Circutor
+  else if (modbus_state == 5) {
+    modbus_state = 6;
+    result = node.readInputRegisters(DIRECCION_TO_READ_2, (REGISTERS_TO_READ_2*2));
+    Serial.println("");
+    Serial.print("_readInputRegisters_2_: ");
+    Serial.print(result);
+    Serial.print("    modbus_state -->  ");
+    Serial.println(modbus_state);
+    if (result == node.ku8MBSuccess){
+      for (int i =0; i < (REGISTERS_TO_READ_2); i++) {
+        // The first result go to the first position asigned in tx_values
+        result_to_register(i,REGISTERS_TO_READ_1);
+      }
+      for (int i = REGISTERS_TO_READ_1; i < (NUMBER_OF_REGISTERS); i++) {
+        Serial.print(array_parameters[i]);
+        Serial.print(" ---> ");
+        Serial.println(tx_values[i]);
+      }
+    }
+    else {
+      Serial.println("the reading is NOT CORRECT");
+      default_value_to_register(REGISTERS_TO_READ_1,NUMBER_OF_REGISTERS);
     }
   }
   else {
-    Serial.println("the reading is NOT CORRECT");
-    default_value_to_register();
+    modbus_state = 4;
+    msj_to_tx = compose_msj_to_tx();
+    Serial.print("_compose_msj_to_tx_");
+    Serial.print("    modbus_state --> ");
+    Serial.println(modbus_state);
   }
-
-  String msj_to_tx = compose_msj_to_tx();
-  Serial.println(msj_to_tx);
-
-  Serial.print("_millis()_");
-  Serial.println(millis()/1000);
-  if(( millis() - t_last_tx) > 60000) {
-    Serial.print("_emoncms_publish_");
-    t_last_tx = millis();
-    emoncms_publish(msj_to_tx);
-  }
+  return msj_to_tx;
 
 }
 

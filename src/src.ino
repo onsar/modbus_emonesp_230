@@ -68,7 +68,6 @@ void setup() {
 
   DEBUG.println("Server started");
 
-  DEBUG.println("modbus_setup");
   modbus_setup();
 
   delay(100);
@@ -82,27 +81,30 @@ void loop()
   // ota_loop();
   web_server_loop();
   wifi_loop();
-  modbus_loop();
 
 
-  String input = "";
-  boolean gotInput = input_get(input);
 
-  if (wifi_mode == WIFI_MODE_STA || wifi_mode == WIFI_MODE_AP_AND_STA)
-  {
-    if(emoncms_apikey != 0 && gotInput) {
-      emoncms_publish(input);
-    }
-    if(mqtt_server != 0)
-    {
-      mqtt_loop();
-      if(gotInput) {
-        mqtt_publish(input);
+//   String input = "";
+//  boolean gotInput = input_get(input);
+
+  if (( millis() - t_last_tx) > 20000) {
+    t_last_tx = millis();
+    if (wifi_mode == WIFI_MODE_STA || wifi_mode == WIFI_MODE_AP_AND_STA){
+      if(emoncms_apikey != 0) {
+        String msj_to_tx_ = modbus_loop();
+        if (msj_to_tx_ != "nook") {
+          emoncms_publish(msj_to_tx_);
+        }
       }
     }
   }
 
 
+
+
+  // timet to tx modbus information
+  // Serial.print("_millis()_");
+  // Serial.println(millis()/1000);
 
   delay(2000);
 
