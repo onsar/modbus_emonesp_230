@@ -18,9 +18,9 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
 // Definitios of the MODBUS query
 // To read all data it is necessary two different queries
 #define NUMBER_OF_REGISTERS 24
-#define DIRECCION_TO_READ_1 0x0000
+#define DIRECTION_TO_READ_1 0x0000
 #define REGISTERS_TO_READ_1 15
-#define DIRECCION_TO_READ_2 0x001E
+#define DIRECTION_TO_READ_2 0x001E
 #define REGISTERS_TO_READ_2 9
 
 
@@ -42,18 +42,26 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
                     1,1,1,100,100,\
                     10,10,10,10
 
-
+// arrays needed to read and manage the modbus information
 String array_parameters[] = {PARAMETER_LIST};
 String transmission_list[] = {TRANSMISSION_LIST};
 int factor_list[] = {FACTOR_LIST};
 int tx_mark[NUMBER_OF_REGISTERS];
+float tx_values[NUMBER_OF_REGISTERS];
 
+// variables to calculate the number of member in the array
 int number_of_parameters = 0;
 int number_of_tx_list = 0;
-// registro de resultadoS para transmitir al servidor
-float tx_values[24];
 
-// For secuencial execution of functions (temporal thread)
+
+
+/* For secuencial execution of functions (temporal thread)
+The system will execute only one function of the thread each 20 ms
+after that execution the program will continue
+once the 20 has passed, the program will execute the following function of the thread
+t_last_tx variable to know the time from the last function execution
+modbus_state variable to indicate the next functio to be executed
+*/
 uint32_t t_last_tx =0;
 int modbus_state = 1;
 
@@ -98,9 +106,11 @@ long two_register_to_long(uint16_t high_16, uint16_t low_16){
   return both_long;
 }
 
-// consecutive number from 0 to number of tx_value to calculate
-// it depends on the registers received with reasImputRegisters
-// first: first position in the results array: tx_values[]
+/* n: number from 0 to number of parameters received in the last modbus query
+it depends on the registers received with reasImputRegisters
+first: first position in the results array: tx_values[]
+*/
+
 void result_to_register(int n, int first){
   long both_long = 0;
   both_long = two_register_to_long(node.getResponseBuffer(n*2),node.getResponseBuffer((n*2)+1));
@@ -113,7 +123,9 @@ void result_to_register(int n, int first){
   // Serial.println(tx_values[n+first]);
 }
 
-
+/*
+default values when modus is not available
+*/
 void default_value_to_register(int first, int last){
   Serial.println("_default_value_to_register_");
   for (int i =first; i < (last); i++) {
@@ -202,7 +214,6 @@ String modbus_loop()
   // sizeof(long) --> 4
   // Serial.println(mayor_32) --> 2147483648
 
-
   String msj_to_tx = "nook";
   uint8_t result;
 
@@ -210,12 +221,12 @@ String modbus_loop()
 
   if (modbus_state == 1) {
     modbus_state = 2;
-    // Primario Tensión          1(Dec)          00000001 (Hex)
+    // primary voltage          1(Dec)          00000001 (Hex)
     node.setTransmitBuffer(0x00, 0x0000);
     node.setTransmitBuffer(0x01, 0x0001);
-    // Secundario Tensión       1(Dec)          0001 (Hex)
+    // secondary voltage      1(Dec)          0001 (Hex)
     node.setTransmitBuffer(0x02, 0x0001);
-    // Primario de Corriente    50(Dec) 32 Hex) 5000(Dec) 1388(Hex)
+    // primary current    50(Dec) 32 Hex) 5000(Dec) 1388(Hex)
     node.setTransmitBuffer(0x03, 0x0032);
     // Sin uso
     node.setTransmitBuffer(0x04, 0x0000);
@@ -238,7 +249,7 @@ String modbus_loop()
     Serial.println(modbus_state);
     if (result == node.ku8MBSuccess)
     {
-      Serial.println("lectura de los registros ES VALIDA");
+      Serial.println("The reading is CORRECT");
       Serial.print("0x00: ");
       Serial.println(node.getResponseBuffer(0x00));
       Serial.print("0x01: ");
@@ -262,7 +273,7 @@ String modbus_loop()
     Serial.print("    modbus_state -->  ");
     Serial.println(modbus_state);
     if (result == node.ku8MBSuccess){
-      Serial.println("lectura de los registros ES VALIDA");
+      Serial.println("The reading is CORRECT");
       Serial.print("0x00: ");
       Serial.println(node.getResponseBuffer(0x00),HEX);
       Serial.print("0x01: ");
@@ -274,12 +285,12 @@ String modbus_loop()
   }
 
 
-// ***********************************************************
-
+/* reading of register. Firs query
+*/
 
   else if (modbus_state == 4) {
     modbus_state = 5;
-    result = node.readInputRegisters(DIRECCION_TO_READ_1, (REGISTERS_TO_READ_1*2));
+    result = node.readInputRegisters(DIRECTION_TO_READ_1, (REGISTERS_TO_READ_1*2));
     Serial.println("");
     Serial.print("_readInputRegisters_1_: ");
     Serial.print(result);
@@ -303,11 +314,11 @@ String modbus_loop()
     }
   }
 
-  // Serial.println("_readInputRegisters_2_");
-  // delay(10000);  //Needed to read from Circutor
+  /* reading of register. Second query
+  */
   else if (modbus_state == 5) {
     modbus_state = 6;
-    result = node.readInputRegisters(DIRECCION_TO_READ_2, (REGISTERS_TO_READ_2*2));
+    result = node.readInputRegisters(DIRECTION_TO_READ_2, (REGISTERS_TO_READ_2*2));
     Serial.println("");
     Serial.print("_readInputRegisters_2_: ");
     Serial.print(result);
