@@ -19,13 +19,13 @@ PROGRAM: [=         ]  10.3% (used 432488 bytes from 4194304 bytes)
 // Definitios of the MODBUS query
 // To read all data it is necessary two different queries
 #define NUMBER_OF_REGISTERS 5
-#define DIRECCION_TO_READ_1 202   //Energia acumulada
+#define DIRECTION_TO_READ_1 202   //Energia acumulada
 #define REGISTERS_TO_READ_1 1
-#define DIRECCION_TO_READ_2 802   //potencia kw
+#define DIRECTION_TO_READ_2 802   //potencia kw
 #define REGISTERS_TO_READ_2 1
-#define DIRECCION_TO_READ_3 812   //caudal
+#define DIRECTION_TO_READ_3 812   //caudal
 #define REGISTERS_TO_READ_3 1
-#define DIRECCION_TO_READ_4 822   //temparatura
+#define DIRECTION_TO_READ_4 822   //temparatura
 #define REGISTERS_TO_READ_4 2
 
 
@@ -41,13 +41,13 @@ String array_parameters[] = {PARAMETER_LIST};
 String transmission_list[] = {TRANSMISSION_LIST};
 int factor_list[] = {FACTOR_LIST};
 int tx_mark[NUMBER_OF_REGISTERS];
+// registro de resultadoS para transmitir al servidor
 float tx_values[NUMBER_OF_REGISTERS];
 
 // variables to calculate the number of member in the array
 int number_of_parameters = 0;
 int number_of_tx_list = 0;
-// registro de resultadoS para transmitir al servidor
-float tx_values[NUMBER_OF_REGISTERS];
+
 
 // For secuencial execution of functions (temporal thread)
 uint32_t t_last_tx = 0;
@@ -321,7 +321,7 @@ String modbus_loop()
 
   else if (modbus_state == 6) {
     modbus_state = 7;
-    result = node.readInputRegisters(DIRECCION_TO_READ_3, (REGISTERS_TO_READ_3*2));
+    result = node.readInputRegisters(DIRECTION_TO_READ_3, (REGISTERS_TO_READ_3*2));
     Serial.println("");
     Serial.print("_readInputRegisters_2_: ");
     Serial.print(result);
@@ -348,7 +348,7 @@ String modbus_loop()
 
   else if (modbus_state == 7) {
     modbus_state = 1;
-    result = node.readInputRegisters(DIRECCION_TO_READ_4, (REGISTERS_TO_READ_4*2));
+    result = node.readInputRegisters(DIRECTION_TO_READ_4, (REGISTERS_TO_READ_4*2));
     Serial.println("");
     Serial.print("_readInputRegisters_4_: ");
     Serial.print(result);
